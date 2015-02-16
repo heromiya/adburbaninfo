@@ -59,6 +59,7 @@
 			var params_1;
 			var params_2;
 			var city_ext;
+		    var city_bounds;
 			var layerExist = 0;
 			//var localhost = "http://localhost:28080";
 			var localhost = "http://guam.csis.u-tokyo.ac.jp:28080";
@@ -77,26 +78,35 @@
 			var obj;
 			var chartWidth = 250, chartHeight = 140;
 			var city;
-			
+		    var maxScale;
+		    var minZoomLevel;
 			jsonURL = localhost + "/geoserver/adburbaninfo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=adburbaninfo:city&outputFormat=json";
 			
-			map = new OpenLayers.Map("map-id", {
-					projection: new OpenLayers.Projection("EPSG:900913"),
-					displayProjection: new OpenLayers.Projection("EPSG: 4326"),
-					units: 'degrees'
-				}
-			);
-			
-			map.addControl(new OpenLayers.Control.LayerSwitcher());	
-			map.addControl(new OpenLayers.Control.ScaleLine());
-			map.addControl(new OpenLayers.Control.PanZoomBar());
-			map.addControl(new OpenLayers.Control.LayerSwitcher({'ascending':false}));
-			map.addControl(new OpenLayers.Control.MousePosition());
-			map.addControl(new OpenLayers.Control.OverviewMap());
-			map.addControl(new OpenLayers.Control.KeyboardDefaults());
-			
-			osm_wms = new OpenLayers.Layer.WMS(
-				"OpenStreetMap WMS",
+		    var mapExtent = new OpenLayers.Bounds(5000000,-6000000,20000000,7500000);
+		    map = new OpenLayers.Map("map-id", 
+					     {
+						 projection: new OpenLayers.Projection("EPSG:900913"),
+						 displayProjection: new OpenLayers.Projection("EPSG:4326"),
+						 units: 'degrees',
+						 restrictedExtent: mapExtent,
+						 eventListeners: {
+						     'moveend': function(e){
+							 if(map.getZoom() < minZoomLevel) {
+							     map.setCenter(null,minZoomLevel);
+							 }
+						     }
+						 }
+					     }
+					    );
+		    
+		    map.addControl(new OpenLayers.Control.LayerSwitcher());	
+		    map.addControl(new OpenLayers.Control.ScaleLine());
+		    map.addControl(new OpenLayers.Control.LayerSwitcher({'ascending':false}));
+		    map.addControl(new OpenLayers.Control.MousePosition());
+		    map.addControl(new OpenLayers.Control.KeyboardDefaults());
+		    		    
+		    osm_wms = new OpenLayers.Layer.WMS(
+			"OpenStreetMap WMS",
 				"http://ows.terrestris.de/osm/service?",
 				{layers: 'OSM-WMS'},
 				{
@@ -216,20 +226,22 @@
 				}),
 				projection: new OpenLayers.Projection("EPSG:4326"),
 				eventListeners: {
-					'loadend': function(evt) {
-						map.zoomToExtent(vecLayer.getDataExtent());
+					'loadend': function(evt) {		    
+					    map.zoomToExtent(mapExtent);
+					    //map.zoomToExtent(vecLayer.getDataExtent());
 						// console.log(vecLayer.getDataExtent());
-						var center = new OpenLayers.LonLat(11196188, 2384031);
+						//var center = new OpenLayers.LonLat(11196188, 2384031);
 						// map.setCenter(center);
-						map.panTo(center);
+						//map.panTo(center);
 						// remove after zoonToExtent
 						map.removeLayer(vecLayer)
 					}
 				}
 			});
 			
-			map.addLayers([city_wms, vecLayer, osm, google_var, google_hybrid, google_physical, google_streets, google_satellite, google_terrain]);
-			
+			//map.addLayers([city_wms, vecLayer, osm, google_var, google_hybrid, google_physical, google_streets, google_satellite, google_terrain]);
+			map.addLayers([city_wms, vecLayer, google_satellite, osm]);
+
 			Ext.define('City', {
 				extend: 'Ext.data.Model',
 				fields: [
@@ -411,69 +423,85 @@
 					]
 					}),
 					
-					eventListeners: {
-						'loadend': function(evt) {
-							map.zoomToExtent(city_ext.getDataExtent());
-						}
+				    eventListeners: {
+					'loadstart': function() {
+					},
+					'loadend': function() {
+					    city_bounds = city_ext.getDataExtent();
+					    map.setCenter(city_bounds.getCenterLonLat(), map.getZoomForExtent(city_bounds));
+					    //map.zoomToExtent(city_bounds);
+					    map.setOptions({restrictedExtent: city_bounds});
+					    map.setBaseLayer(osm);
+					    maxScale = map.getScale();
+					    minZoomLevel = map.getZoomForExtent(city_bounds);
 					}
+				    }
 				});
 				
 				map.addLayer(city_ext);
 				
 				city_ext.displayInLayerSwitcher = false;
-				city_ext.setVisibility(false);
-				
-				r1990 = new OpenLayers.Layer.WMS(
-					"Landsat 1990",
-					geoserver_WMS_URL, {
-						layers: "adburbaninfo:gls1990",
-						transparent: "true",
-						format: "image/jpeg"
-					},{
-						opacity: opa,
-                                                singleTile: false,
-						isBaseLayer: false
-					}
-				);
-				
-				r2000 = new OpenLayers.Layer.WMS(
-					"Landsat 2000",
-					geoserver_WMS_URL, {
-						layers: "adburbaninfo:gls2000",
-						transparent: "true", 
-						format: "image/jpeg"
-					},{
-						opacity: opa, 
-                                                singleTile: false,
-						isBaseLayer: false
-					}
-				);
-				
-				r2005 = new OpenLayers.Layer.WMS(
-					"Landsat 2005",
-					geoserver_WMS_URL, {
-						layers: "adburbaninfo:gls2005",
-						transparent: "true", 
-						format: "image/jpeg"
-					},{
-						opacity: opa, 
-                                                singleTile: false,
-						isBaseLayer: false
-					}
-				);
-				
-				r2010 = new OpenLayers.Layer.WMS(
-					"Landsat 2010",
-					geoserver_WMS_URL, {
-						layers: "adburbaninfo:gls2010",
-						transparent: "true", 
-						format: "image/jpeg"
-					},{
-						opacity: opa, 
-                                                singleTile: false,
-						isBaseLayer: false
-					}
-				);
+				city_ext.setVisibility(true);
+
+			    r1990 = new OpenLayers.Layer.WMTS(
+				{
+				    name: "Landsat 1990",
+				    url: 'http://guam.csis.u-tokyo.ac.jp:3857/wmts/gls1990/{TileMatrixSet}/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
+				    layer: 'gls1990',
+				    matrixSet: 'GLOBAL_MERCATOR',
+				    format: 'image/jpeg',
+				    isBaseLayer: false,
+				    style: 'default',
+				    requestEncoding: 'REST',
+				    transparent: "true",
+				    opacity: opa
+				}
+			    );
+
+			    r2000 = new OpenLayers.Layer.WMTS(
+				{
+				    name: "Landsat 2000",
+				    url: 'http://guam.csis.u-tokyo.ac.jp:3857/wmts/gls2000/{TileMatrixSet}/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
+				    layer: 'gls2000',
+				    matrixSet: 'GLOBAL_MERCATOR',
+				    format: 'image/jpeg',
+				    isBaseLayer: false,
+				    style: 'default',
+				    requestEncoding: 'REST',
+				    transparent: "true",
+				    opacity: opa
+				}
+			    );
+
+			    r2005 = new OpenLayers.Layer.WMTS(
+				{
+				    name: "Landsat 2005",
+				    url: 'http://guam.csis.u-tokyo.ac.jp:3857/wmts/gls2005/{TileMatrixSet}/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
+				    layer: 'gls2005',
+				    matrixSet: 'GLOBAL_MERCATOR',
+				    format: 'image/jpeg',
+				    isBaseLayer: false,
+				    style: 'default',
+				    requestEncoding: 'REST',
+				    transparent: "true",
+				    opacity: opa
+				}
+			    );
+			    
+			    r2010 = new OpenLayers.Layer.WMTS(
+				{
+				    name: "Landsat 2010",
+				    url: 'http://guam.csis.u-tokyo.ac.jp:3857/wmts/gls2010/{TileMatrixSet}/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
+				    layer: 'gls2010',
+				    matrixSet: 'GLOBAL_MERCATOR',
+				    format: 'image/jpeg',
+				    isBaseLayer: false,
+				    style: 'default',
+				    requestEncoding: 'REST',
+				    transparent: "true",
+				    opacity: opa
+				}
+			    );
 				
 				rpop2010 = new OpenLayers.Layer.WMS(
 					"Population 2010",
@@ -831,7 +859,7 @@
 						layout: "fit",
 						border: false,
 						width: 350,
-                        height: 400,
+					    height: 400,
 						items: [printMapPanel],
 						bbar: [{
 							xtype: 'combo',
