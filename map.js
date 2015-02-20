@@ -441,7 +441,7 @@
 				map.addLayer(city_ext);
 				
 				city_ext.displayInLayerSwitcher = false;
-				city_ext.setVisibility(true);
+				city_ext.setVisibility(false);
 
 			    r1990 = new OpenLayers.Layer.WMTS(
 				{
@@ -503,58 +503,58 @@
 				}
 			    );
 				
-				rpop2010 = new OpenLayers.Layer.WMS(
-					"Population 2010",
-					geoserver_WMS_URL, {
-						layers: getLayerName(params_0, params_1, params_2, 2010, 'pop2010'), 
-						transparent: "true", 
-						format: "image/png"
-					},{
-						opacity: opa, 
-                                                singleTile: false,
-						isBaseLayer: false
-					}
-				);
-				
-				rpop2015 = new OpenLayers.Layer.WMS(
-					"Population 2015",
-					geoserver_WMS_URL, {
-						layers: getLayerName(params_0, params_1, params_2, 2015, 'pop2015'), 
-						transparent: "true", 
-						format: "image/png"
-					},{
-						opacity: opa, 
-                                                singleTile: false,
-						isBaseLayer: false
-					}
-				);
-				
-				rpop2020 = new OpenLayers.Layer.WMS(
-					"Population 2020",
-					geoserver_WMS_URL, {
-						layers: getLayerName(params_0, params_1, params_2, 2020, 'pop2015'), 
-						transparent: "true", 
-						format: "image/png"
-					},{
-						opacity: opa,
-                                                singleTile: false,
-						isBaseLayer: false
-					}
-				);
-				
-				vecPol = new OpenLayers.Layer.WMS(
-					"Urban Growth",
-					 "http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv?map=/var/www/map/llgc.cls.tile.map", {
-						layers: "URBAN_GROWTH",
-						transparent: "true", 
-						format: "image/png"
-					},{
-						opacity: opa, 
-                                                singleTile: false,
-						isBaseLayer: false
-					}
-				);
-				
+			    rpop2010 = new OpenLayers.Layer.WMS(
+				"Population 2010 (/km2)",
+				"http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv-6.4.1?map=/var/www/map/worldpop.map", {
+				    layers: 'r_' + params_0 + '_' + params_1 + '_' + params_2 + '_pop2010', 
+				    transparent: "true", 
+				    format: "image/png"
+				},{
+				    opacity: opa, 
+                                    singleTile: false,
+				    isBaseLayer: false
+				}
+			    );
+
+			    rpop2015 = new OpenLayers.Layer.WMS(
+				"Population 2015 (/km2)",
+				"http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv-6.4.1?map=/var/www/map/worldpop.map", {
+				    layers: 'r_' + params_0 + '_' + params_1 + '_' + params_2 + '_pop2015', 
+				    transparent: "true", 
+				    format: "image/png"
+				},{
+				    opacity: opa, 
+                                    singleTile: false,
+				    isBaseLayer: false
+				}
+			    );
+
+			    rpop2020 = new OpenLayers.Layer.WMS(
+				"Population 2020 (/km2)",
+				"http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv-6.4.1?map=/var/www/map/worldpop.map", {
+				    layers: 'r_' + params_0 + '_' + params_1 + '_' + params_2 + '_pop2020', 
+				    transparent: "true", 
+				    format: "image/png"
+				},{
+				    opacity: opa, 
+                                    singleTile: false,
+				    isBaseLayer: false
+				}
+			    );
+			    			    
+			    vecPol = new OpenLayers.Layer.WMS(
+				"Urban Growth",
+				"http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv?map=/var/www/map/llgc.cls.tile.map", {
+				    layers: "URBAN_GROWTH",
+				    transparent: "true", 
+				    format: "image/png"
+				},{
+				    opacity: opa, 
+                                    singleTile: false,
+				    isBaseLayer: false
+				}
+			    );
+			    
 				vecPol.setVisibility(false);
 				r1990.setVisibility(false);
 				r2000.setVisibility(false);
@@ -578,7 +578,7 @@
 						r2010, 
 						rpop2010, 
 						rpop2015, 
-						rpop2020,
+						//rpop2020,
 						vecPol
 					]);
 				}
@@ -1104,7 +1104,10 @@
 			var legendPanel = Ext.create('GeoExt.panel.Legend', {
 				defaults: {
 					labelCls: 'mylabel',
-					style: 'padding:5px'
+				    style: 'padding:5px',
+				    baseParams: {
+					FORMAT: 'image/png'
+				    }
 				},
 				bodyStyle: 'padding:5px',
 				width: 230,
