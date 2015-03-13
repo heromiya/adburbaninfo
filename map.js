@@ -36,6 +36,9 @@ Ext.application({
 	var google_streets;
 	var google_satellite;
 	var google_terrain;
+	var gm_satellite_wmts;
+	var gm_satellite_wms;
+	var gm_satellite_tms;
 	var osm;
 	var osm_wms;
 	var context;
@@ -81,7 +84,7 @@ Ext.application({
 	var minZoomLevel;
 	jsonURL = localhost + "/geoserver/adburbaninfo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=adburbaninfo:city&outputFormat=json";
 	
-	var mapExtent = new OpenLayers.Bounds(5000000,-6000000,20000000,7500000);
+	var mapExtent = new OpenLayers.Bounds(4200000,-6000000,24000000,7500000);
 	map = new OpenLayers.Map("map-id", 
 				 {
 				     projection: new OpenLayers.Projection("EPSG:900913"),
@@ -103,6 +106,7 @@ Ext.application({
 	map.addControl(new OpenLayers.Control.LayerSwitcher({'ascending':false}));
 	map.addControl(new OpenLayers.Control.MousePosition());
 	map.addControl(new OpenLayers.Control.KeyboardDefaults());
+	map.addControl(new OpenLayers.Control.MousePosition());
 	
 	osm_wms = new OpenLayers.Layer.WMS(
 	    "OpenStreetMap WMS",
@@ -150,7 +154,30 @@ Ext.application({
 	    "Google Terrain",
 	    {type: google.maps.MapTypeId.TERRAIN}
 	);
+
+	gm_satellite_wmts = new OpenLayers.Layer.WMTS(
+	    {
+		name: "WMTS gm_satellite",
+		url: 'http://guam.csis.u-tokyo.ac.jp:3857/wmts/gm_satellite/{TileMatrixSet}/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
+		layer: 'gm_satellite',
+		matrixSet: 'GLOBAL_MERCATOR',
+		format: 'image/jpeg',
+		isBaseLayer: true,
+		style: 'default',
+		srs:"EPSG:900913",
+		requestEncoding: 'REST'
+	    }
+	);
+	gm_satellite_wms = new OpenLayers.Layer.WMS( "WMS gm_satellite",
+					      "http://guam.csis.u-tokyo.ac.jp:3857/service?",
+					      {layers: "gm_satellite", format: "image/jpeg", srs:"EPSG:900913",
+					       exceptions: "application/vnd.ogc.se_inimage"},
+					      {singleTile: true, ratio: 1, isBaseLayer: true} );
 	
+	gm_satellite_tms = new OpenLayers.Layer.TMS('TMS gm_satellite', 'http://guam.csis.u-tokyo.ac.jp:3857/tms/',
+					     {layername: 'gm_satellite/GLOBAL_MERCATOR', type: 'jpeg',
+					      tileSize: new OpenLayers.Size(256, 256)
+					     });
 	context = {
 	    getColor: function(feature) {
 		return 'blue';
@@ -195,20 +222,22 @@ Ext.application({
 	
 	// Updated - 1/23/2015
 	// Use WMS instead of WFS
-	var city_wms = new OpenLayers.Layer.WMS("City", 
-						localhost + "/geoserver/adburbaninfo/wms", {
-						    layers: 'adburbaninfo:city_coordinates',
-						    format: 'image/png',
-						    transparent: true,
-						    opacity: 0.8
-						},
-						{
-						    singleTile: false, 
-						    ratio: 1, 
-						    isBaseLayer: false,
-						    yx : {'EPSG:4326' : true}
-						}
-					       );
+	var city_wms = new OpenLayers.Layer.WMS(
+	    "City", 
+	    localhost + "/geoserver/adburbaninfo/wms", {
+		layers: 'adburbaninfo:city_coordinates',
+		format: 'image/png',
+		transparent: true,
+		srs: 'EPSG:4326',
+		opacity: 0.8
+	    },
+	    {
+		singleTile: false, 
+		ratio: 1, 
+		isBaseLayer: false,
+		yx : {'EPSG:4326' : true}
+	    }
+	);
 	
 	// WFS
 	vecLayer = new OpenLayers.Layer.Vector("City WFS", {
@@ -226,7 +255,6 @@ Ext.application({
 	    projection: new OpenLayers.Projection("EPSG:4326"),
 	    eventListeners: {
 		'loadend': function(evt) {		    
-		    map.zoomToExtent(mapExtent);
 		    // console.log(vecLayer.getDataExtent());
 		    // remove after zoonToExtent
 		    map.removeLayer(vecLayer)
@@ -235,7 +263,8 @@ Ext.application({
 	});
 	
 	//map.addLayers([city_wms, vecLayer, osm, google_var, google_hybrid, google_physical, google_streets, google_satellite, google_terrain]);
-	map.addLayers([city_wms, vecLayer, google_satellite, osm]);
+	map.addLayers([city_wms, google_satellite, osm]);
+	//map.addLayers([city_wms, gm_satellite_tms]);
 
 	Ext.define('City', {
 	    extend: 'Ext.data.Model',
@@ -438,66 +467,11 @@ Ext.application({
 	    city_ext.displayInLayerSwitcher = false;
 	    city_ext.setVisibility(true);
 
-	    r1990 = new OpenLayers.Layer.WMTS(
-		{
-		    name: "Landsat 1990",
-		    url: 'http://guam.csis.u-tokyo.ac.jp:3857/wmts/gls1990/{TileMatrixSet}/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
-		    layer: 'gls1990',
-		    matrixSet: 'GLOBAL_MERCATOR',
-		    format: 'image/jpeg',
-		    isBaseLayer: false,
-		    style: 'default',
-		    requestEncoding: 'REST',
-		    transparent: "true",
-		    opacity: opa
-		}
-	    );
+	    r1990 = new OpenLayers.Layer.WMS("Landsat 1990","http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv-6.4.1?map=/var/www/map/landsat_gls.map", {layers: 'GLS1990', format: "image/jpeg"},{ singleTile: false,isBaseLayer: false});
+	    r2000 = new OpenLayers.Layer.WMS("Landsat 2000","http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv-6.4.1?map=/var/www/map/landsat_gls.map", {layers: 'GLS2000', format: "image/jpeg"},{ singleTile: false,isBaseLayer: false});
+	    r2005 = new OpenLayers.Layer.WMS("Landsat 2005","http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv-6.4.1?map=/var/www/map/landsat_gls.map", {layers: 'GLS2005', format: "image/jpeg"},{ singleTile: false,isBaseLayer: false});
+	    r2010 = new OpenLayers.Layer.WMS("Landsat 2010","http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv-6.4.1?map=/var/www/map/landsat_gls.map", {layers: 'GLS2010', format: "image/jpeg"},{ singleTile: false,isBaseLayer: false});
 
-	    r2000 = new OpenLayers.Layer.WMTS(
-		{
-		    name: "Landsat 2000",
-		    url: 'http://guam.csis.u-tokyo.ac.jp:3857/wmts/gls2000/{TileMatrixSet}/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
-		    layer: 'gls2000',
-		    matrixSet: 'GLOBAL_MERCATOR',
-		    format: 'image/jpeg',
-		    isBaseLayer: false,
-		    style: 'default',
-		    requestEncoding: 'REST',
-		    transparent: "true",
-		    opacity: opa
-		}
-	    );
-
-	    r2005 = new OpenLayers.Layer.WMTS(
-		{
-		    name: "Landsat 2005",
-		    url: 'http://guam.csis.u-tokyo.ac.jp:3857/wmts/gls2005/{TileMatrixSet}/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
-		    layer: 'gls2005',
-		    matrixSet: 'GLOBAL_MERCATOR',
-		    format: 'image/jpeg',
-		    isBaseLayer: false,
-		    style: 'default',
-		    requestEncoding: 'REST',
-		    transparent: "true",
-		    opacity: opa
-		}
-	    );
-	    
-	    r2010 = new OpenLayers.Layer.WMTS(
-		{
-		    name: "Landsat 2010",
-		    url: 'http://guam.csis.u-tokyo.ac.jp:3857/wmts/gls2010/{TileMatrixSet}/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
-		    layer: 'gls2010',
-		    matrixSet: 'GLOBAL_MERCATOR',
-		    format: 'image/jpeg',
-		    isBaseLayer: false,
-		    style: 'default',
-		    requestEncoding: 'REST',
-		    transparent: "true",
-		    opacity: opa
-		}
-	    );
-	    
 	    rpop2010 = new OpenLayers.Layer.WMS(
 		"Population 2010 (/km2)",
 		"http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv-6.4.1?map=/var/www/map/worldpop.map", {
@@ -539,7 +513,7 @@ Ext.application({
 	    
 	    vecPol = new OpenLayers.Layer.WMS(
 		"Urban Growth",
-		"http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv?map=/var/www/map/llgc.cls.tile.map", {
+		"http://guam.csis.u-tokyo.ac.jp/cgi-bin/mapserv-6.4.1?map=/var/www/map/llgc.cls.tile.map", {
 		    layers: "URBAN_GROWTH",
 		    transparent: "true", 
 		    format: "image/png"
@@ -573,7 +547,7 @@ Ext.application({
 		    r2010, 
 		    rpop2010, 
 		    rpop2015, 
-		    //rpop2020,
+		    rpop2020,
 		    vecPol
 		]);
 	    }
@@ -590,9 +564,6 @@ Ext.application({
 	    jsonURL = localhost + "/geoserver/adburbaninfo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=" + layerName + "&outputFormat=json";		
 	    getHistoryData(jsonURL);
 	}
-	
-	
-	
 	
 	// Function that retrieves chart figure
 	function getHistoryData(jsonURL) {
@@ -633,29 +604,29 @@ Ext.application({
 			data2: 0,
 			data3: cnt90
 		    });
-		    growth100 = area100/(area90+area100)*100; 
+		    growth100 = (area100-area90)/area90*100; 
 		    //console.log("growth 2000 = "+ growth100);
 		    records.push({
 			name: '2000',
-			data1: area90+area100,
+			data1: area100,
 			data2: growth100,
-			data3: cnt90+cnt100
+			data3: cnt100
 		    });
-		    growth105 = area105/(area90+area100+area105)*100;
+		    growth105 = (area105-area100)/(area100)*100;
 		    //console.log("growth 2005 = "+ growth105);
 		    records.push({
 			name: '2005',
-			data1: area90+area100+area105,
-			data2: growth100+growth105,
-			data3: cnt90+cnt100+cnt105
+			data1: area105,
+			data2: growth105,
+			data3: cnt105
 		    });
-		    growth110 = area110/(area90+area100+area105+area110)*100;
+		    growth110 = (area110-area105)/(area105)*100;
 		    //console.log("growth 2010 = "+ growth110);
 		    records.push({
 			name: '2010',
-			data1: area90+area100+area105+area110,
-			data2: growth100+growth105+growth110,
-			data3: cnt90+cnt100+cnt105+cnt110
+			data1: area110,
+			data2: growth110,
+			data3: cnt110
 		    });
 		    store.loadData(records);
 		},
@@ -959,7 +930,9 @@ Ext.application({
 	}
 
 	center = new OpenLayers.LonLat(100, 12);
-	map.setCenter(center, 4);
+//	map.setCenter(center, 4);
+//	map.zoomToMaxExtent();
+	map.setCenter(mapExtent.getCenterLonLat(), map.getZoomForExtent(mapExtent));
 	
 	if(store) {
 	    store.reload();
@@ -986,7 +959,7 @@ Ext.application({
 		label: {
 		    renderer: Ext.util.Format.numberRenderer('0,0')
 		},
-		title: 'Total Area',
+		title: 'Total Area (km2)',
 		grid: true
 	    }, {
 		type: 'Category',
